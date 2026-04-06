@@ -44,7 +44,7 @@
               <a class="nav-link {% if active_page == 'pedidos' %}active{% endif %}" href="{{ url_for('pedidos') }}">Pedidos</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('index') }}#produtos">Produtos</a>
+              <a class="nav-link {% if active_page == 'produtos' %}active{% endif %}" href="{{ url_for('produtos') }}">Produtos</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('index') }}#caixa">Caixa</a>

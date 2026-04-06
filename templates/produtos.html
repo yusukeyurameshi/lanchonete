@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="mb-4">
+  <h2 class="h3 mb-1 app-section-title">Produtos</h2>
+  <p class="text-secondary mb-0">Cadastre, edite e exclua produtos.</p>
+</header>
+
+{% if feedback %}
+<div class="alert alert-info" role="alert">
+  {{ feedback }}
+</div>
+{% endif %}
+
+<section class="row g-3">
+  <article class="col-12 col-xl-4">
+    <div class="card shadow-sm h-100 app-card">
+      <div class="card-body">
+        <h3 class="h5 card-title">Novo Produto</h3>
+        <form action="/products" method="post" class="vstack gap-2">
+          <input type="hidden" name="next" value="produtos" />
+
+          <label for="name" class="form-label mb-0">Nome</label>
+          <input id="name" name="name" class="form-control" required />
+
+          <label for="price" class="form-label mb-0">Preco</label>
+          <input id="price" name="price" type="number" step="0.01" min="0" class="form-control" required />
+
+          <label for="stock" class="form-label mb-0">Estoque Inicial</label>
+          <input id="stock" name="stock" type="number" min="0" class="form-control" required />
+
+          <button type="submit" class="btn btn-primary">Cadastrar Produto</button>
+        </form>
+      </div>
+    </div>
+  </article>
+
+  <article class="col-12 col-xl-8">
+    <div class="card shadow-sm app-card">
+      <div class="card-body">
+        <h3 class="h5 card-title">Gerenciar Produtos</h3>
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Preço</th>
+                <th>Estoque</th>
+                <th class="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for product in products %}
+              <tr>
+                <td colspan="4">
+                  <form action="/products/{{ product.id }}/update" method="post" class="row g-2 align-items-end">
+                    <div class="col-12 col-lg-5">
+                      <label class="form-label mb-1">Produto</label>
+                      <input name="name" class="form-control" value="{{ product.name }}" required />
+                    </div>
+                    <div class="col-6 col-lg-2">
+                      <label class="form-label mb-1">Preço</label>
+                      <input
+                        name="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="form-control"
+                        value="{{ '%.2f'|format(product.price) }}"
+                        required
+                      />
+                    </div>
+                    <div class="col-6 col-lg-2">
+                      <label class="form-label mb-1">Estoque</label>
+                      <input name="stock" type="number" min="0" class="form-control" value="{{ product.stock }}" required />
+                    </div>
+                    <div class="col-12 col-lg-3 d-flex gap-2 justify-content-lg-end">
+                      <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                      <button
+                        type="submit"
+                        class="btn btn-sm btn-outline-danger"
+                        formaction="/products/{{ product.id }}/delete"
+                        formnovalidate
+                        onclick="return confirm('Excluir este produto?');"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </form>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-secondary">Nenhum produto cadastrado.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+{% endblock %}

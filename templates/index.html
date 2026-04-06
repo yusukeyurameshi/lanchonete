@@ -12,6 +12,7 @@
       <div class="card-body">
         <h3 class="h5 card-title">Novo Produto</h3>
         <form action="/products" method="post" class="vstack gap-2">
+          <input type="hidden" name="next" value="index" />
           <label for="name" class="form-label mb-0">Nome</label>
           <input id="name" name="name" class="form-control" required />
 
@@ -22,6 +23,7 @@
           <input id="stock" name="stock" type="number" min="0" class="form-control" required />
 
           <button type="submit" class="btn btn-primary">Cadastrar Produto</button>
+          <a href="{{ url_for('produtos') }}" class="btn btn-outline-primary">Ir para CRUD de Produtos</a>
         </form>
       </div>
     </div>

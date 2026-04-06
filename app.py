@@ -30,6 +30,22 @@ def row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     return dict(row)
 
 
+def get_products() -> list[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            "SELECT id, name, price, stock, created_at FROM products ORDER BY name"
+        ).fetchall()
+
+
+def resolve_next_page(default_endpoint: str = "produtos") -> str:
+    next_page = request.form.get("next", "").strip().lower()
+    if next_page == "index":
+        return url_for("index")
+    if next_page == "pedidos":
+        return url_for("pedidos")
+    return url_for(default_endpoint)
+
+
 def get_cash_summary() -> tuple[float, float, float]:
     with get_connection() as conn:
         cash_summary = conn.execute(
@@ -47,10 +63,7 @@ def get_cash_summary() -> tuple[float, float, float]:
 
 @app.get("/")
 def index() -> str:
-    with get_connection() as conn:
-        products = conn.execute(
-            "SELECT id, name, price, stock, created_at FROM products ORDER BY name"
-        ).fetchall()
+    products = get_products()
     entradas, saidas, saldo = get_cash_summary()
     return render_template(
         "index.html",
@@ -62,12 +75,22 @@ def index() -> str:
     )
 
 
+@app.get("/produtos")
+def produtos() -> str:
+    products = get_products()
+    feedback = request.args.get("feedback", "").strip()
+    return render_template(
+        "produtos.html",
+        products=products,
+        feedback=feedback,
+        active_page="produtos",
+    )
+
+
 @app.get("/pedidos")
 def pedidos() -> str:
+    products = get_products()
     with get_connection() as conn:
-        products = conn.execute(
-            "SELECT id, name, price, stock, created_at FROM products ORDER BY name"
-        ).fetchall()
         orders = conn.execute(
             "SELECT id, status, total, created_at FROM orders ORDER BY id DESC LIMIT 30"
         ).fetchall()
@@ -81,21 +104,22 @@ def pedidos() -> str:
 
 @app.post("/products")
 def create_product():
+    next_url = resolve_next_page()
     name = request.form.get("name", "").strip()
     price = request.form.get("price", "").strip()
     stock = request.form.get("stock", "").strip()
 
     if not name:
-        return jsonify({"error": "Nome do produto e obrigatorio."}), 400
+        return redirect(url_for("produtos", feedback="Nome do produto e obrigatorio."))
 
     try:
         price_value = float(price)
         stock_value = int(stock)
     except ValueError:
-        return jsonify({"error": "Preco e estoque devem ser numericos."}), 400
+        return redirect(url_for("produtos", feedback="Preco e estoque devem ser numericos."))
 
     if price_value < 0 or stock_value < 0:
-        return jsonify({"error": "Preco e estoque nao podem ser negativos."}), 400
+        return redirect(url_for("produtos", feedback="Preco e estoque nao podem ser negativos."))
 
     try:
         with get_connection() as conn:
@@ -104,9 +128,67 @@ def create_product():
                 (name, price_value, stock_value),
             )
     except sqlite3.IntegrityError:
-        return jsonify({"error": "Produto ja existe."}), 409
+        return redirect(url_for("produtos", feedback="Produto ja existe."))
 
-    return redirect(url_for("pedidos"))
+    return redirect(next_url)
+
+
+@app.post("/products/<int:product_id>/update")
+def update_product(product_id: int):
+    name = request.form.get("name", "").strip()
+    price = request.form.get("price", "").strip()
+    stock = request.form.get("stock", "").strip()
+
+    if not name:
+        return redirect(url_for("produtos", feedback="Nome do produto e obrigatorio."))
+
+    try:
+        price_value = float(price)
+        stock_value = int(stock)
+    except ValueError:
+        return redirect(url_for("produtos", feedback="Preco e estoque devem ser numericos."))
+
+    if price_value < 0 or stock_value < 0:
+        return redirect(url_for("produtos", feedback="Preco e estoque nao podem ser negativos."))
+
+    try:
+        with get_connection() as conn:
+            updated = conn.execute(
+                """
+                UPDATE products
+                SET name = ?, price = ?, stock = ?
+                WHERE id = ?
+                """,
+                (name, price_value, stock_value, product_id),
+            ).rowcount
+    except sqlite3.IntegrityError:
+        return redirect(url_for("produtos", feedback="Ja existe produto com esse nome."))
+
+    if updated == 0:
+        return redirect(url_for("produtos", feedback="Produto nao encontrado."))
+
+    return redirect(url_for("produtos", feedback="Produto atualizado com sucesso."))
+
+
+@app.post("/products/<int:product_id>/delete")
+def delete_product(product_id: int):
+    try:
+        with get_connection() as conn:
+            deleted = conn.execute(
+                "DELETE FROM products WHERE id = ?",
+                (product_id,),
+            ).rowcount
+    except sqlite3.IntegrityError:
+        return redirect(
+            url_for(
+                "produtos",
+                feedback="Nao foi possivel excluir: produto vinculado a pedidos.",
+            )
+        )
+
+    if deleted == 0:
+        return redirect(url_for("produtos", feedback="Produto nao encontrado."))
+    return redirect(url_for("produtos", feedback="Produto excluido com sucesso."))
 
 
 @app.post("/orders")
