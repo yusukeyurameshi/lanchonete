@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="mb-4">
+  <h2 class="h3 mb-1">Pedidos</h2>
+  <p class="text-secondary mb-0">Crie e feche pedidos em uma tela dedicada.</p>
+</header>
+
+<section class="row g-3">
+  <article class="col-12 col-xl-8">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h5 card-title">Novo Pedido (clique nos produtos)</h3>
+        <div class="products-grid">
+          {% for product in products %}
+          <button
+            type="button"
+            class="product-box btn btn-outline-primary"
+            data-product-id="{{ product.id }}"
+            data-product-name="{{ product.name }}"
+            data-product-price="{{ product.price }}"
+            data-product-stock="{{ product.stock }}"
+          >
+            <span class="product-name">{{ product.name }}</span>
+            <span class="product-meta">R$ {{ '%.2f'|format(product.price) }}</span>
+            <span class="product-meta">Estoque: {{ product.stock }}</span>
+          </button>
+          {% endfor %}
+        </div>
+
+        <form id="cart-form" action="/orders/cart" method="post" class="vstack gap-2">
+          <input id="cart-json" type="hidden" name="cart_json" required />
+          <h4 class="h6 mb-0 mt-1">Itens do pedido</h4>
+          <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Qtd</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="cart-items">
+                <tr>
+                  <td colspan="3">Nenhum item selecionado.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="cart-total mb-0">Total: <strong id="cart-total-value">R$ 0,00</strong></p>
+
+          <div class="cart-actions">
+            <button type="button" id="clear-cart" class="btn btn-secondary">Limpar</button>
+            <button type="submit" class="btn btn-primary">Criar Pedido</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </article>
+
+  <article class="col-12 col-xl-4">
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h3 class="h5 card-title">Selecao rapida</h3>
+        <p class="text-secondary">
+          Cada clique em uma caixa adiciona 1 unidade do produto ao pedido atual.
+        </p>
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item px-0">Clique no produto para adicionar +1.</li>
+          <li class="list-group-item px-0">Se clicar novamente, a quantidade aumenta.</li>
+          <li class="list-group-item px-0">Finalize no botao "Criar Pedido".</li>
+        </ul>
+      </div>
+    </div>
+  </article>
+
+  <article class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h3 class="h5 card-title">Pedidos Recentes</h3>
+        <div class="table-responsive">
+          <table class="table table-striped align-middle mb-0">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Acao</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in orders %}
+              <tr>
+                <td>#{{ order.id }}</td>
+                <td>{{ order.status }}</td>
+                <td>R$ {{ '%.2f'|format(order.total) }}</td>
+                <td>
+                  {% if order.status == 'ABERTO' %}
+                  <form action="/orders/{{ order.id }}/close" method="post">
+                    <button type="submit" class="btn btn-sm btn-success">Fechar</button>
+                  </form>
+                  {% else %}
+                  <span class="badge text-bg-secondary">Fechado</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<script>
+  const productButtons = document.querySelectorAll(".product-box");
+  const cartItemsEl = document.getElementById("cart-items");
+  const cartJsonEl = document.getElementById("cart-json");
+  const cartTotalEl = document.getElementById("cart-total-value");
+  const clearCartButton = document.getElementById("clear-cart");
+  const cartForm = document.getElementById("cart-form");
+
+  const cart = new Map();
+
+  const formatBRL = (value) =>
+    value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  function syncFormData() {
+    const items = Array.from(cart.entries()).map(([productId, item]) => ({
+      product_id: Number(productId),
+      quantity: item.quantity,
+    }));
+    cartJsonEl.value = JSON.stringify(items);
+  }
+
+  function renderCart() {
+    if (cart.size === 0) {
+      cartItemsEl.innerHTML = '<tr><td colspan="3">Nenhum item selecionado.</td></tr>';
+      cartTotalEl.textContent = formatBRL(0);
+      syncFormData();
+      return;
+    }
+
+    let total = 0;
+    const rows = [];
+    for (const [, item] of cart) {
+      const subtotal = item.price * item.quantity;
+      total += subtotal;
+      rows.push(`
+        <tr>
+          <td>${item.name}</td>
+          <td>${item.quantity}</td>
+          <td>${formatBRL(subtotal)}</td>
+        </tr>
+      `);
+    }
+    cartItemsEl.innerHTML = rows.join("");
+    cartTotalEl.textContent = formatBRL(total);
+    syncFormData();
+  }
+
+  productButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const productId = button.dataset.productId;
+      const productName = button.dataset.productName;
+      const productPrice = Number(button.dataset.productPrice);
+      const productStock = Number(button.dataset.productStock);
+
+      const currentQty = cart.get(productId)?.quantity || 0;
+      if (currentQty >= productStock) {
+        return;
+      }
+
+      cart.set(productId, {
+        name: productName,
+        price: productPrice,
+        quantity: currentQty + 1,
+      });
+      renderCart();
+    });
+  });
+
+  clearCartButton.addEventListener("click", () => {
+    cart.clear();
+    renderCart();
+  });
+
+  cartForm.addEventListener("submit", (event) => {
+    if (cart.size === 0) {
+      event.preventDefault();
+    }
+  });
+
+  renderCart();
+</script>
+{% endblock %}
