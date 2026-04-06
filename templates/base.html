@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-bs-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -11,11 +11,19 @@
       crossorigin="anonymous"
     />
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <script>
+      (() => {
+        const savedTheme = localStorage.getItem("theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const theme = savedTheme || (prefersDark ? "dark" : "light");
+        document.documentElement.setAttribute("data-bs-theme", theme);
+      })();
+    </script>
   </head>
   <body class="app-body">
     <nav class="navbar navbar-expand-lg app-navbar shadow-sm">
       <div class="container-fluid px-3 px-lg-4">
-        <a class="navbar-brand fw-semibold" href="{{ url_for('index') }}">Lanchonete</a>
+        <a class="navbar-brand fw-semibold text-primary-emphasis" href="{{ url_for('index') }}">Lanchonete</a>
         <button
           class="navbar-toggler"
           type="button"
@@ -42,6 +50,9 @@
               <a class="nav-link" href="{{ url_for('index') }}#caixa">Caixa</a>
             </li>
           </ul>
+          <button id="theme-toggle" class="btn btn-outline-secondary btn-sm" type="button">
+            Tema: Claro
+          </button>
         </div>
       </div>
     </nav>
@@ -53,5 +64,27 @@
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const button = document.getElementById("theme-toggle");
+        if (!button) return;
+
+        function updateButton() {
+          const current = root.getAttribute("data-bs-theme") || "light";
+          button.textContent = current === "dark" ? "Tema: Escuro" : "Tema: Claro";
+        }
+
+        button.addEventListener("click", () => {
+          const current = root.getAttribute("data-bs-theme") || "light";
+          const next = current === "dark" ? "light" : "dark";
+          root.setAttribute("data-bs-theme", next);
+          localStorage.setItem("theme", next);
+          updateButton();
+        });
+
+        updateButton();
+      })();
+    </script>
   </body>
 </html>
