@@ -53,4 +53,5 @@ As primeiras issues sugeridas estao em:
 - `docs/ISSUES_BACKLOG.md`
 
 ## Licenca
-Uso interno / privado (ajustar conforme necessidade).
+Este projeto esta licenciado sob a UPL 1.0 (Universal Permissive License).
+Veja o arquivo `LICENSE`.
